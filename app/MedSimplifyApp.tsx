@@ -127,7 +127,6 @@ export default function Home() {
           <span>MedSimplify</span>
         </a>
         <span className="demo-pill"><i /> College project · anonymized files only</span>
-        <form action="/api/logout" method="post"><button className="sign-out" type="submit">Sign out</button></form>
       </header>
 
       <section className="hero shell" id="top">

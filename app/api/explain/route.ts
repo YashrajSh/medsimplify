@@ -1,5 +1,3 @@
-import { isAuthenticated } from "@/lib/auth";
-
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
@@ -23,7 +21,6 @@ const instructions = `You are a senior clinical documentation specialist creatin
 function json(body: unknown, status = 200) { return Response.json(body, { status, headers: { "Cache-Control": "no-store" } }); }
 
 export async function POST(request: Request) {
-  if (!(await isAuthenticated())) return json({ error: "Your session has expired. Please sign in again." }, 401);
   if (!process.env.GEMINI_API_KEY) return json({ error: "The analysis service is not configured." }, 503);
   let form: FormData;
   try { form = await request.formData(); } catch { return json({ error: "The upload could not be read." }, 400); }
