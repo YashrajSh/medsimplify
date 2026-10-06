@@ -62,6 +62,16 @@ function normalizeReport(value: unknown) {
   return { document_type: asText(source.document_type), report_date: asText(source.report_date), plain_language_summary: asText(source.plain_language_summary), clinical_story: asText(source.clinical_story), key_findings: findings, timeline, tests_and_treatments: treatments, concerns_to_discuss: concerns, questions_for_clinician: asList(source.questions_for_clinician).map(asText).filter(Boolean), limitations, confidence };
 }
 
+function parseModelJson(output: string) {
+  const cleaned = output.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  try { return JSON.parse(cleaned); } catch {
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start >= 0 && end > start) return JSON.parse(cleaned.slice(start, end + 1));
+    throw new Error("Model output was not JSON");
+  }
+}
+
 async function extractPdfText(buffer: Buffer) {
   const pdf = await getDocumentProxy(new Uint8Array(buffer));
   const { text } = await extractText(pdf, { mergePages: false });
@@ -135,7 +145,7 @@ export async function POST(request: Request) {
           const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
           const output = data.choices?.[0]?.message?.content?.trim();
           if (!output) return json({ error: "The model returned no usable explanation." }, 502);
-          try { return json(normalizeReport(JSON.parse(output))); } catch { return json({ error: "The explanation did not pass structural validation." }, 502); }
+          try { return json(normalizeReport(parseModelJson(output))); } catch { return json({ error: "The explanation did not pass structural validation." }, 502); }
         }
 
         lastStatus = response.status;
