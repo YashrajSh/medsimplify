@@ -55,14 +55,17 @@ function normalizeReport(value: unknown) {
     return { concern: asText(row.concern), why_it_matters: asText(row.why_it_matters), next_step: asText(row.next_step), urgency: asText(row.urgency), evidence: normalizeEvidence(row.evidence) };
   });
   const limitations = asList(source.limitations).map(asText).filter(Boolean);
-  const confidence = ["high", "medium", "low"].includes(asText(source.confidence)) ? asText(source.confidence) : "low";
+  const evidenceCount = [...findings, ...timeline, ...treatments, ...concerns].filter((item) => item.evidence.quote || item.evidence.page).length;
+  if (evidenceCount === 0) limitations.push("The free model did not return page-linked source quotes for this response; verify important details against the original report.");
+  const requestedConfidence = asText(source.confidence);
+  const confidence = evidenceCount === 0 ? "low" : ["high", "medium", "low"].includes(requestedConfidence) ? requestedConfidence : "low";
   return { document_type: asText(source.document_type), report_date: asText(source.report_date), plain_language_summary: asText(source.plain_language_summary), clinical_story: asText(source.clinical_story), key_findings: findings, timeline, tests_and_treatments: treatments, concerns_to_discuss: concerns, questions_for_clinician: asList(source.questions_for_clinician).map(asText).filter(Boolean), limitations, confidence };
 }
 
 async function extractPdfText(buffer: Buffer) {
   const pdf = await getDocumentProxy(new Uint8Array(buffer));
-  const { text } = await extractText(pdf, { mergePages: true });
-  return text;
+  const { text } = await extractText(pdf, { mergePages: false });
+  return (Array.isArray(text) ? text : [text]).map((page, index) => `--- PDF PAGE ${index + 1} ---\n${page}`).join("\n\n");
 }
 
 export async function POST(request: Request) {
