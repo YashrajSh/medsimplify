@@ -20,6 +20,13 @@ const instructions = `You are a senior clinical documentation specialist creatin
 
 function json(body: unknown, status = 200) { return Response.json(body, { status, headers: { "Cache-Control": "no-store" } }); }
 
+const RETRYABLE_GEMINI_STATUSES = new Set([429, 500, 502, 503, 504]);
+const GEMINI_ATTEMPT_TIMEOUT_MS = 12_000;
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function POST(request: Request) {
   if (!process.env.GEMINI_API_KEY) return json({ error: "The analysis service is not configured." }, 503);
   let form: FormData;
@@ -34,16 +41,49 @@ export async function POST(request: Request) {
   const reportPart = isPdf ? { inline_data: { mime_type: "application/pdf", data: Buffer.from(await file.arrayBuffer()).toString("base64") } } : { text: `REPORT CONTENT:\n${await file.text()}` };
   const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 55_000);
   try {
-    const model = process.env.HOSTED_MODEL_NAME || "gemini-3.6-flash";
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-      method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY }, signal: controller.signal,
-      body: JSON.stringify({ contents: [{ role: "user", parts: [reportPart, { text: instructions }] }], generationConfig: { responseMimeType: "application/json", responseJsonSchema: schema, temperature: 0.1 } }),
-    });
-    if (!response.ok) { console.error("Gemini request failed", response.status); return json({ error: response.status === 429 ? "The free analysis quota is busy. Please retry shortly." : "The report could not be analyzed safely. Please retry." }, response.status === 429 ? 429 : 502); }
-    const data = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-    const output = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim();
-    if (!output) return json({ error: "The model returned no usable explanation." }, 502);
-    try { return json(JSON.parse(output)); } catch { return json({ error: "The explanation did not pass structural validation." }, 502); }
+    const primaryModel = process.env.HOSTED_MODEL_NAME || "gemini-3.6-flash";
+    const fallbackModel = process.env.HOSTED_FALLBACK_MODEL_NAME || "gemini-3.8-flash";
+    const models = [...new Set([primaryModel, fallbackModel])];
+    let lastStatus = 503;
+
+    for (const model of models) {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const attemptController = new AbortController();
+        const attemptTimeout = setTimeout(() => attemptController.abort(), GEMINI_ATTEMPT_TIMEOUT_MS);
+        const signal = AbortSignal.any([controller.signal, attemptController.signal]);
+        let response: Response;
+        try {
+          response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+            method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY }, signal,
+            body: JSON.stringify({ contents: [{ role: "user", parts: [reportPart, { text: instructions }] }], generationConfig: { responseMimeType: "application/json", responseJsonSchema: schema, temperature: 0.1 } }),
+          });
+        } catch (error) {
+          clearTimeout(attemptTimeout);
+          if (controller.signal.aborted) throw error;
+          console.error("Gemini attempt timed out", { model, attempt: attempt + 1 });
+          lastStatus = 503;
+          if (attempt === 1) break;
+          await wait(700 * (attempt + 1));
+          continue;
+        }
+        clearTimeout(attemptTimeout);
+        if (response.ok) {
+          const data = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+          const output = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim();
+          if (!output) return json({ error: "The model returned no usable explanation." }, 502);
+          try { return json(JSON.parse(output)); } catch { return json({ error: "The explanation did not pass structural validation." }, 502); }
+        }
+
+        lastStatus = response.status;
+        console.error("Gemini request failed", { model, status: response.status, attempt: attempt + 1 });
+        if (!RETRYABLE_GEMINI_STATUSES.has(response.status) || attempt === 1) break;
+        await wait(700 * (attempt + 1));
+      }
+    }
+
+    if (lastStatus === 429) return json({ error: "The Gemini free-tier quota is busy. Please retry shortly." }, 429);
+    if (RETRYABLE_GEMINI_STATUSES.has(lastStatus)) return json({ error: "Gemini is temporarily busy. We tried a backup model; please retry in a minute." }, 503);
+    return json({ error: "The configured Gemini model is unavailable. Please contact the project owner." }, 502);
   } catch (error) {
     console.error("Report analysis failed", error instanceof Error ? error.message : "unknown error");
     return json({ error: error instanceof DOMException && error.name === "AbortError" ? "Analysis took too long. Please retry." : "The analysis service is temporarily unavailable." }, 504);
