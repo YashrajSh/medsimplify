@@ -182,7 +182,7 @@ export default function Home() {
           <button className="primary" disabled={!file || !confirmed || phase === "processing"} onClick={explain}>
             {phase === "processing" ? "Reading your report…" : "Explain this report"}<span>→</span>
           </button>
-          <p className="privacy-note">Gemini free-tier processing is used for this educational demo. Submitted content may be used by Google to improve its products.</p>
+          <p className="privacy-note">OpenRouter free-tier processing is used for this educational demo. Your report is sent to the configured model provider for analysis; upload only synthetic or fully anonymized reports.</p>
         </div>
       </section>
 
