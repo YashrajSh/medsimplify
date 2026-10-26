@@ -4,6 +4,7 @@ A rule-based Python version of what `app/api/explain/route.ts` asks the LLM to d
 
 ```bash
 python3 nlp/pipeline.py nlp/sample_report.txt
+python3 nlp/pipeline.py nlp/sample_plastic_surgery.txt
 cd nlp && python3 -m unittest test_pipeline
 ```
 

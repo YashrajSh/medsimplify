@@ -35,6 +35,8 @@ DOC_TYPES = {
     "Imaging report": ["x-ray", "ct scan", "mri", "ultrasound", "impression", "radiograph"],
     "Discharge summary": ["discharge", "admitted", "admission", "hospital course"],
     "Prescription": ["rx", "tablet", "capsule", "once daily", "twice daily"],
+    "Plastic surgery report": ["rhinoplasty", "blepharoplasty", "abdominoplasty", "liposuction", "mammoplasty",
+                               "rhytidectomy", "graft", "flap", "implant", "reconstruction", "cosmetic", "suture"],
 }
 
 
@@ -70,10 +72,28 @@ GLOSSARY = {
     "edema": "swelling caused by fluid",
     "benign": "not cancer",
     "malignant": "cancerous",
+    "rhinoplasty": "surgery to reshape the nose",
+    "blepharoplasty": "eyelid surgery to remove extra skin or fat",
+    "abdominoplasty": "a tummy tuck, which removes extra skin and fat from the belly",
+    "liposuction": "removing fat through a thin suction tube",
+    "mammoplasty": "surgery to change the size or shape of the breasts",
+    "rhytidectomy": "a facelift",
+    "graft": "healthy tissue moved from one part of the body to another",
+    "flap": "a piece of tissue moved along with its own blood supply to cover a wound",
+    "implant": "a medical device placed inside the body",
+    "seroma": "a pocket of clear fluid that can collect under the skin after surgery",
+    "hematoma": "a collection of blood under the skin",
+    "dehiscence": "the edges of a wound coming apart",
+    "contracture": "scar tissue tightening and pulling the skin or an implant",
+    "keloid": "a thick, raised scar",
+    "necrosis": "tissue dying because of poor blood supply",
+    "debridement": "cleaning a wound by removing dead or damaged tissue",
+    "suture": "stitches",
     "fracture": "a broken bone",
     "lesion": "an area of abnormal tissue",
 }
-TREATMENT = re.compile(r"\b(tablet|capsule|injection|mg\b|prescribed|started on|surgery|therapy|biopsy|scan|x-ray|mri|ct)\b", re.I)
+TREATMENT = re.compile(r"\b(tablet|capsule|injection|mg\b|prescribed|started on|surgery|therapy|biopsy|scan|x-ray|mri|ct"
+                       r"|\w+plasty|liposuction|rhytidectomy|graft\w*|flap|implant\w*|debridement|sutur\w*)\b", re.I)
 
 
 def explain_terms(sentence):

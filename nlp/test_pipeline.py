@@ -23,6 +23,13 @@ class PipelineTest(unittest.TestCase):
         finding = analyze("No evidence of anemia.")["key_findings"][0]
         self.assertEqual(finding["status"], "normal")
 
+    def test_plastic_surgery_report(self):
+        report = analyze((Path(__file__).parent / "sample_plastic_surgery.txt").read_text())
+        self.assertEqual(report["document_type"], "Plastic surgery report")
+        self.assertTrue(any("rhinoplasty" in t["name"].lower() for t in report["tests_and_treatments"]))
+        negated = [f for f in report["key_findings"] if "hematoma" in f["title"].lower()][0]
+        self.assertEqual(negated["status"], "normal")
+
 
 if __name__ == "__main__":
     unittest.main()
