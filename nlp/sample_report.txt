@@ -1,0 +1,9 @@
+--- PDF PAGE 1 ---
+City Diagnostics Lab - Complete Blood Count (CBC)
+Report date: 14/09/2026
+Hemoglobin 10.2 g/dL (13.0 - 17.0)
+WBC 7.8 10^3/uL (4.0 - 11.0)
+Platelet Count 250 10^3/uL (150 - 450)
+--- PDF PAGE 2 ---
+Impression: Findings suggest mild anemia. No evidence of infection.
+Started on iron tablet 100 mg once daily on 15/09/2026.
